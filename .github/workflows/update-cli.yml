@@ -1,53 +1,29 @@
-name: Update Checkmarx AST CLI
-
+name: Update checkmarx ast cli
 on:
   workflow_dispatch:
-    inputs:
-      new_cli_version:
-        description: 'New CLI version (optional)'
-        required: false
   schedule:
     - cron: '0 0 * * *'
 
 jobs:
   update-checkmarx-cli:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      # Fetch the latest Checkmarx AST CLI version
       - name: Get Latest Checkmarx API version
         id: checkmarx-ast-cli
         run: |
-          if [ "${{ github.event.inputs.new_cli_version }}" ]; then
-            LATEST_VERSION=${{ github.event.inputs.new_cli_version }}
-          else
-            LATEST_VERSION=$(curl -sL https://api.github.com/repos/Checkmarx/ast-cli/releases/latest | jq -r ".tag_name")
-          fi
-          CURRENT_VERSION=$(<checkmarx-ast-cli.version)
-          echo ::set-output name=release_tag::$LATEST_VERSION
-          echo ::set-output name=current_tag::$CURRENT_VERSION
+          echo ::set-output name=release_tag::$(curl -sL https://api.github.com/repos/Checkmarx/ast-cli/releases/latest | jq -r ".tag_name")
+          echo ::set-output name=current_tag::$(<checkmarx-ast-cli.version)
 
-      # Update the version file if the latest version differs
-      - name: Update Checkmarx CLI version in version file
+      - name: Update Checkmarx cli version
         if: steps.checkmarx-ast-cli.outputs.current_tag != steps.checkmarx-ast-cli.outputs.release_tag
         env:
           RELEASE_TAG: ${{ steps.checkmarx-ast-cli.outputs.release_tag }}
         run: |
+          # Update current release
           echo ${{ steps.checkmarx-ast-cli.outputs.release_tag }} > checkmarx-ast-cli.version
 
-      # Update the TypeScript file's cliDefaultVersion field
-      - name: Update cliDefaultVersion in CxInstaller.ts
-        if: steps.checkmarx-ast-cli.outputs.current_tag != steps.checkmarx-ast-cli.outputs.release_tag
-        env:
-          NEW_CLI_VERSION: ${{ steps.checkmarx-ast-cli.outputs.release_tag }}
-        run: |
-          FILE_PATH="src/main/osinstaller/CxInstaller.ts"
-          # Ensure that 'cliDefaultVersion' is updated correctly
-          sed -i "s/\(cliDefaultVersion = '\)[^']*\(';\)/\1${NEW_CLI_VERSION}\2/" $FILE_PATH
-
-      # Create a Pull Request with the version changes
       - name: Create Pull Request
         if: steps.checkmarx-ast-cli.outputs.current_tag != steps.checkmarx-ast-cli.outputs.release_tag
         uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c #v6
