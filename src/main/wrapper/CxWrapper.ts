@@ -4,25 +4,23 @@ import {CxConstants} from "./CxConstants";
 import {ExecutionService} from "./ExecutionService";
 import {CxCommandOutput} from "./CxCommandOutput";
 import {getLoggerWithFilePath, logger} from "./loggerConfig";
+import * as fs from "fs"
 import * as os from "os";
 import CxBFL from "../bfl/CxBFL";
+import path = require('path');
 import {CxInstaller} from "../osinstaller/CxInstaller";
-import {Semaphore} from "async-mutex";
-import {HttpClient} from "../client/HttpClient";
-import {AstClient} from "../client/AstClient";
-
 
 type ParamTypeMap = Map<CxParamType, string>;
-
 export class CxWrapper {
-    private static instances =new Map<string, CxWrapper>(); // Multiton pattern
-    private static semaphore = new Semaphore(1);  // Semaphore with 1 slot
-    config: CxConfig;
-    cxInstaller: CxInstaller;
-    private constructor(cxScanConfig: CxConfig, logFilePath?: string) {
-        this.cxInstaller = new CxInstaller(process.platform, new AstClient(new HttpClient()));
-        this.config = new CxConfig();
+    config: CxConfig = new CxConfig();
+    windows = 'win32';
+    mac = 'darwin';
+    linux = 'linux';
+    
+
+    async constructor(cxScanConfig: CxConfig, logFilePath?: string) {
         getLoggerWithFilePath(logFilePath)
+        await this.downloadIfNotInstalledCLI(process.platform);
         if (cxScanConfig.apiKey) {
             this.config.apiKey = cxScanConfig.apiKey;
         } else if (cxScanConfig.clientId && cxScanConfig.clientSecret) {
@@ -32,10 +30,20 @@ export class CxWrapper {
         } else {
             logger.info("Did not receive ClientId/Secret or ApiKey from cli arguments");
         }
+        let executablePath: string;
         if (cxScanConfig.pathToExecutable) {
             this.config.pathToExecutable = cxScanConfig.pathToExecutable;
+        } else if (process.platform === 'win32') {
+            executablePath = path.join(__dirname, '/resources/cx.exe');
+            this.config.pathToExecutable = executablePath;
+        } else if (process.platform === 'darwin') {
+            executablePath = path.join(__dirname, '/resources/cx');
+            this.config.pathToExecutable = executablePath;
+            fs.chmodSync(this.config.pathToExecutable, 0o777);
         } else {
-            this.config.pathToExecutable = this.cxInstaller.getExecutablePath();
+            executablePath = path.join(__dirname, '/resources/cx');
+            this.config.pathToExecutable = executablePath;
+            fs.chmodSync(this.config.pathToExecutable, 0o777);
         }
         if (cxScanConfig.baseUri) {
             this.config.baseUri = cxScanConfig.baseUri;
@@ -50,35 +58,14 @@ export class CxWrapper {
             this.config.additionalParameters = cxScanConfig.additionalParameters;
         }
     }
-
-    static async getInstance(cxScanConfig: CxConfig, logFilePath: string): Promise<CxWrapper> {
-        const [, release] = await this.semaphore.acquire();
-        const key = this.generateKey(cxScanConfig, logFilePath);
-        let wrapper = CxWrapper.instances.get(key);
-        if (!wrapper) {
-            wrapper = new CxWrapper(cxScanConfig, logFilePath);
-            CxWrapper.instances.set(key, wrapper);
-        }
-        release();
-
-        return wrapper;
-    }
     
-    static generateKey(config:CxConfig,logFilePath:string): string {
-        return `${config.baseUri}${config.baseAuthUri}${config.clientId}${config.clientSecret}${config.apiKey}${config.tenant}${config.additionalParameters}${config.pathToExecutable}${logFilePath}`.toLowerCase();
-    }
-
-    async init(): Promise<void> {
-        return await this.cxInstaller.downloadIfNotInstalledCLI();
-    }
-    
-    public cloneWithNewConfig(scanConfig: CxConfig): CxWrapper {
-        return new CxWrapper(scanConfig);
+    async downloadIfNotInstalledCLI(os: string){
+        
+        let cxInstaller = new CxInstaller(os);
+        await cxInstaller.install('/resources');
     }
 
     initializeCommands(formatRequired: boolean): string[] {
-        this.config.pathToExecutable = this.cxInstaller.getExecutablePath();
-
         const list: string[] = [];
         if (this.config.clientId) {
             list.push(CxConstants.CLIENT_ID);
@@ -104,8 +91,8 @@ export class CxWrapper {
             list.push(CxConstants.TENANT);
             list.push(this.config.tenant);
         }
-        if (this.config.additionalParameters) {
-            this.prepareAdditionalParams(this.config.additionalParameters).forEach(function (param) {
+        if(this.config.additionalParameters){
+            this.prepareAdditionalParams(this.config.additionalParameters).forEach(function (param){
                 list.push(param)
             })
         }
@@ -156,7 +143,8 @@ export class CxWrapper {
         if (agent) {
             commands.push(CxConstants.AGENT);
             commands.push(agent);
-        } else {
+        }
+        else {
             commands.push(CxConstants.AGENT);
             // if we don't send any parameter in the flag
             // then in the cli takes the default and this is not true
@@ -231,7 +219,7 @@ export class CxWrapper {
     async getResultsList(scanId: string) {
         const exec = new ExecutionService();
         const fileName = new Date().getTime().toString();
-        const commands = await this.resultsShow(scanId, CxConstants.FORMAT_JSON, fileName, os.tmpdir())
+        const commands = this.resultsShow(scanId, CxConstants.FORMAT_JSON, fileName, os.tmpdir())
         // Executes the command and creates a result file
         await exec.executeResultsCommands(this.config.pathToExecutable, commands)
         // Reads the result file and retrieves the results
@@ -241,7 +229,7 @@ export class CxWrapper {
     async getResultsSummary(scanId: string): Promise<CxCommandOutput> {
         const exec = new ExecutionService();
         const fileName = new Date().getTime().toString();
-        const commands = await this.resultsShow(scanId, CxConstants.FORMAT_HTML_CLI, fileName, os.tmpdir());
+        const commands = this.resultsShow(scanId, CxConstants.FORMAT_HTML_CLI, fileName, os.tmpdir());
         // Executes the command and creates a result file
         await exec.executeResultsCommands(this.config.pathToExecutable, commands);
         // Reads the result file and retrieves the results
@@ -249,7 +237,7 @@ export class CxWrapper {
     }
 
     async getResults(scanId: string, resultType: string, outputFileName: string, outputFilePath: string, agent?: string | null) {
-        const commands = await this.resultsShow(scanId, resultType, outputFileName, outputFilePath, agent)
+        const commands = this.resultsShow(scanId, resultType, outputFileName, outputFilePath, agent)
         const exec = new ExecutionService();
         return await exec.executeCommands(this.config.pathToExecutable, commands);
     }
@@ -261,7 +249,7 @@ export class CxWrapper {
         return await exec.executeCommands(this.config.pathToExecutable, commands, CxConstants.CODE_BASHING_TYPE);
     }
 
-    async resultsShow(scanId: string, reportFormat: string, outputFileName: string, outputPath: string, agent?: string | null): Promise<string[]> {
+    resultsShow(scanId: string, reportFormat: string, outputFileName: string, outputPath: string, agent?: string | null): string[] {
         const commands: string[] = [CxConstants.CMD_RESULT, CxConstants.SUB_CMD_SHOW, CxConstants.SCAN_ID, scanId, CxConstants.REPORT_FORMAT, reportFormat];
         if (outputFileName) {
             commands.push(CxConstants.OUTPUT_NAME);
@@ -291,10 +279,10 @@ export class CxWrapper {
         return response;
     }
 
-    async kicsRealtimeScan(fileSources: string, engine: string, additionalParams: string): Promise<[Promise<CxCommandOutput>, any]> {
+    async kicsRealtimeScan(fileSources: string, engine:string, additionalParams: string):Promise<[Promise<CxCommandOutput>,any]>  {
         const commands: string[] = [CxConstants.CMD_SCAN, CxConstants.CMD_KICS_REALTIME, CxConstants.FILE_SOURCES, fileSources, CxConstants.ADDITONAL_PARAMS, additionalParams];
-        if (engine.length > 0) {
-            commands.push(CxConstants.ENGINE, engine)
+        if(engine.length>0){
+            commands.push(CxConstants.ENGINE,engine)
         }
         commands.push(...this.initializeCommands(false));
         const exec = new ExecutionService();
@@ -313,46 +301,46 @@ export class CxWrapper {
     }
 
 
-    async learnMore(queryId: string) {
-        const commands: string[] = [CxConstants.CMD_UTILS, CxConstants.CMD_LEARN_MORE, CxConstants.QUERY_ID, queryId]
+    async learnMore(queryId: string){
+        const commands: string[] = [CxConstants.CMD_UTILS,CxConstants.CMD_LEARN_MORE,CxConstants.QUERY_ID,queryId]
         commands.push(...this.initializeCommands(true))
         const exec = new ExecutionService();
         return exec.executeCommands(this.config.pathToExecutable, commands, CxConstants.LEARN_MORE_DESCRIPTIONS_TYPE);
     }
 
-    async kicsRemediation(resultsFile: string, kicsFile: string, engine: string, similarityIds?: string): Promise<[Promise<CxCommandOutput>, any]> {
-        const commands: string[] = [CxConstants.CMD_UTILS, CxConstants.CMD_REMEDIATION, CxConstants.KICS, CxConstants.KICS_REMEDIATION_RESULTS_FILE, resultsFile, CxConstants.KICS_REMEDIATION_KICS_FILE, kicsFile];
-        if (engine.length > 0) {
-            commands.push(CxConstants.ENGINE, engine)
+    async kicsRemediation(resultsFile: string, kicsFile:string, engine:string,similarityIds?: string):Promise<[Promise<CxCommandOutput>,any]>  {
+        const commands: string[] = [CxConstants.CMD_UTILS, CxConstants.CMD_REMEDIATION,CxConstants.KICS,CxConstants.KICS_REMEDIATION_RESULTS_FILE, resultsFile, CxConstants.KICS_REMEDIATION_KICS_FILE, kicsFile];
+        if(engine.length>0){
+            commands.push(CxConstants.ENGINE,engine)
         }
-        if (similarityIds) {
-            commands.push(CxConstants.KICS_REMEDIATION_SIMILARITY_IDS, similarityIds)
+        if(similarityIds){
+            commands.push(CxConstants.KICS_REMEDIATION_SIMILARITY_IDS,similarityIds)
         }
         commands.push(...this.initializeCommands(false));
         const exec = new ExecutionService();
         return exec.executeKicsCommands(this.config.pathToExecutable, commands, CxConstants.KICS_REMEDIATION_TYPE);
     }
 
-    async scaRemediation(packageFiles: string, packages: string, packageVersion: string): Promise<CxCommandOutput> {
-        const commands: string[] = [CxConstants.CMD_UTILS, CxConstants.CMD_REMEDIATION, CxConstants.SUB_CMD_REMEDIATION_SCA, CxConstants.SCA_REMEDIATION_PACKAGE_FILES, packageFiles, CxConstants.SCA_REMEDIATION_PACKAGE, packages, CxConstants.SCA_REMEDIATION_PACKAGE_VERSION, packageVersion];
+    async scaRemediation(packageFiles: string, packages:string, packageVersion:string): Promise<CxCommandOutput>  {
+        const commands: string[] = [CxConstants.CMD_UTILS, CxConstants.CMD_REMEDIATION,CxConstants.SUB_CMD_REMEDIATION_SCA,CxConstants.SCA_REMEDIATION_PACKAGE_FILES, packageFiles,CxConstants.SCA_REMEDIATION_PACKAGE, packages,CxConstants.SCA_REMEDIATION_PACKAGE_VERSION,packageVersion];
         commands.push(...this.initializeCommands(false));
         const exec = new ExecutionService();
         return exec.executeCommands(this.config.pathToExecutable, commands);
     }
 
-    async ideScansEnabled(): Promise<boolean> {
+    async ideScansEnabled() : Promise<boolean> {
         const commands: string[] = [CxConstants.CMD_UTILS, CxConstants.SUB_CMD_TENANT];
         commands.push(...this.initializeCommands(false));
         const exec = new ExecutionService();
-        const output = await exec.executeMapTenantOutputCommands(this.config.pathToExecutable, commands);
+        const output =  await exec.executeMapTenantOutputCommands(this.config.pathToExecutable, commands);
         return output.has(CxConstants.IDE_SCANS_KEY) && output.get(CxConstants.IDE_SCANS_KEY).toLowerCase() === " true";
     }
 
-    async guidedRemediationEnabled(): Promise<boolean> {
+    async guidedRemediationEnabled() : Promise<boolean> {
         const commands: string[] = [CxConstants.CMD_UTILS, CxConstants.SUB_CMD_TENANT];
         commands.push(...this.initializeCommands(false));
         const exec = new ExecutionService();
-        const output = await exec.executeMapTenantOutputCommands(this.config.pathToExecutable, commands);
+        const output =  await exec.executeMapTenantOutputCommands(this.config.pathToExecutable, commands);
         return output.has(CxConstants.AI_GUIDED_REMEDIATION_KEY) && output.get(CxConstants.AI_GUIDED_REMEDIATION_KEY).toLowerCase() === " true";
     }
 
@@ -397,7 +385,7 @@ export class CxWrapper {
         return new ExecutionService().executeCommands(this.config.pathToExecutable, commands, CxConstants.CHAT_TYPE);
     }
 
-    async maskSecrets(file: string): Promise<CxCommandOutput> {
+    async maskSecrets( file: string): Promise<CxCommandOutput> {
         const commands: string[] = [
             CxConstants.CMD_UTILS,
             CxConstants.CMD_MASK_SECRETS,
@@ -408,10 +396,10 @@ export class CxWrapper {
         return new ExecutionService().executeCommands(this.config.pathToExecutable, commands, CxConstants.MASK_TYPE);
     }
 
-    prepareAdditionalParams(additionalParameters: string): string[] {
+    prepareAdditionalParams(additionalParameters: string) : string[] {
         const params: string[] = [];
 
-        if (!additionalParameters) {
+        if(!additionalParameters) {
             return params;
         }
 

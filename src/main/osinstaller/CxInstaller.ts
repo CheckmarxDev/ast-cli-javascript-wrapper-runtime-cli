@@ -1,202 +1,168 @@
-import * as fsPromises from 'fs/promises';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as tar from 'tar';
-import * as unzipper from 'unzipper';
-import {logger} from "../wrapper/loggerConfig";
-import {AstClient} from "../client/AstClient";
+import { pipeline } from 'stream';
+import { promisify } from 'util';
+import { createWriteStream } from 'node:fs';
+import fetch from 'node-fetch';
+import AdmZip from 'adm-zip'; // For extracting ZIP files
+import * as tar from 'tar';   // For extracting tar.gz files
 
-const linuxOS = 'linux';
-const macOS = 'darwin';
-const winOS = 'win32';
-type SupportedPlatforms = 'win32' | 'darwin' | 'linux';
-
-interface PlatformData {
-    platform: string;
-    extension: string;
-}
+const streamPipeline = promisify(pipeline);
 
 export class CxInstaller {
-    private readonly platform: SupportedPlatforms;
+    private readonly platform: string;
     private cliVersion: string;
-    private readonly resourceDirPath: string;
-    private readonly installedCLIVersionFileName = 'cli-version';
-    private readonly cliDefaultVersion = '2.3.5'; // Update this with the latest version.
-    private readonly client: AstClient;
 
-    private static readonly PLATFORMS: Record<SupportedPlatforms, PlatformData> = {
-        win32: { platform: 'windows', extension: 'zip' },
-        darwin: { platform: macOS, extension: 'tar.gz' },
-        linux: { platform: linuxOS, extension: 'tar.gz' }
-    };
-
-    constructor(platform: string, client: AstClient) {
-        this.platform = platform as SupportedPlatforms;
-        this.resourceDirPath = path.join(__dirname, '../wrapper/resources');
-        this.client = client;
+    constructor(platform: string) {
+        this.platform = platform;
     }
 
+    // Method to get the download URL based on OS and architecture
     async getDownloadURL(): Promise<string> {
         const cliVersion = await this.readASTCLIVersion();
-        const platformData = CxInstaller.PLATFORMS[this.platform];
+        let platformString: string;
+        let archiveExtension: string;
 
-        if (!platformData) {
-            throw new Error('Unsupported platform or architecture');
+        switch (this.platform) {
+            case 'win32':
+                platformString = 'windows';
+                archiveExtension = 'zip';
+                break;
+            case 'darwin':
+                archiveExtension = 'tar.gz';
+                platformString = 'darwin';
+                break;
+            case 'linux':
+                archiveExtension = 'tar.gz';
+                platformString = 'linux';
+                break;
+            default:
+                throw new Error('Unsupported platform or architecture');
         }
 
-        const architecture = this.getArchitecture();
-
-        return `https://download.checkmarx.com/CxOne/CLI/${cliVersion}/ast-cli_${cliVersion}_${platformData.platform}_${architecture}.${platformData.extension}`;
+        return `https://download.checkmarx.com/CxOne/CLI/${cliVersion}/ast-cli_${cliVersion}_${platformString}_x64.${archiveExtension}`;
     }
+    
+    async getCLIExecutableName(): Promise<string> {
+        let platformString: string;
+        let archiveExtension: string;
+        this.cliVersion = await this.readASTCLIVersion();
 
-    private getArchitecture(): string {
-        // For non-linux platforms we default to x64.
-        if (this.platform !== linuxOS) {
-            return 'x64';
+        switch (this.platform) {
+            case 'win32':
+                platformString = 'windows';
+                archiveExtension = 'zip';
+                break;
+            case 'darwin':
+                archiveExtension = 'tar.gz';
+                platformString = 'darwin';
+                break;
+            case 'linux':
+                archiveExtension = 'tar.gz';
+                platformString = 'linux';
+                break;
+            default:
+                throw new Error('Unsupported platform or architecture');
         }
 
-        const archMap: Record<string, string> = {
-            'arm64': 'arm64',
-            'arm': 'armv6'
-        };
-
-        // Default to 'x64' if the current architecture is not found in the map.
-        return archMap[process.arch] || 'x64';
+        return `ast-cli_${this.cliVersion}_${platformString}_x64.${archiveExtension}`;
     }
 
-    public getExecutablePath(): string {
-        const executableName = this.platform === winOS ? 'cx.exe' : 'cx';
-        return path.join(this.resourceDirPath, executableName);
+    removeExtension(fileName: string): string {
+        if (fileName.endsWith('.tar.gz')) {
+            return fileName.slice(0, -7); // Remove '.tar.gz'
+        }
+        return fileName.replace(/\.[^/.]+$/, ''); // Remove other extensions like '.zip'
+    }
+    
+    // Method to download the file
+    async downloadFile(url: string, outputPath: string): Promise<void> {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Failed to download file: ${response.statusText}`);
+        }
+
+        await streamPipeline(response.body, createWriteStream(outputPath));
+        console.log(`Downloaded to ${outputPath}`);
     }
 
-    public async downloadIfNotInstalledCLI(): Promise<void> {
-        try {
-            await fs.promises.mkdir(this.resourceDirPath, {recursive: true});
-            const cliVersion = await this.readASTCLIVersion();
-
-            if (this.checkExecutableExists()) {
-                const installedVersion = await this.readInstalledVersionFile(this.resourceDirPath);
-                if (installedVersion === cliVersion) {
-                    logger.info('Executable already installed.');
-                    return;
-                }
-            }
-
-            await this.cleanDirectoryContents(this.resourceDirPath);
-            const url = await this.getDownloadURL();
-            const zipPath = path.join(this.resourceDirPath, this.getCompressFolderName());
-
-            await this.client.downloadFile(url, zipPath);
-
-            await this.extractArchive(zipPath, this.resourceDirPath);
-            await this.saveVersionFile(this.resourceDirPath, cliVersion);
-
-            fs.unlink(zipPath, (err) => {
-                if (err) {
-                    logger.warn('Error deleting the file:', err);
-                } else {
-                    logger.info(`File ${zipPath} deleted.`);
-                }
+    // Method to extract the file (ZIP or tar.gz)
+    async extractFile(filePath: string, outputDir: string): Promise<void> {
+        if (filePath.endsWith('.zip')) {
+            // Extract ZIP file
+            const zip = new AdmZip(filePath);
+            zip.extractAllTo(outputDir, true); // Extract to outputDir
+            console.log(`Extracted ZIP to ${outputDir}`);
+        } else if (filePath.endsWith('.tar.gz')) {
+            // Extract tar.gz file
+            await tar.extract({
+                file: filePath,
+                cwd: outputDir, // Extract to the outputDir
             });
-
-            fs.chmodSync(this.getExecutablePath(), 0o755);
-            logger.info('Extracted CLI to:', this.resourceDirPath);
-        } catch (error) {
-            logger.error('Error during installation:', error);
-        }
-    }
-
-    private async cleanDirectoryContents(directoryPath: string): Promise<void> {
-        try {
-            const files = await fsPromises.readdir(directoryPath);
-
-            await Promise.all(files.map(async (file) => {
-                const filePath = path.join(directoryPath, file);
-                const fileStat = await fsPromises.stat(filePath);
-
-                if (fileStat.isDirectory()) {
-                    await fsPromises.rm(filePath, {recursive: true, force: true});
-                    logger.info(`Directory ${filePath} deleted.`);
-                } else {
-                    await fsPromises.unlink(filePath);
-                    logger.info(`File ${filePath} deleted.`);
-                }
-            }));
-
-            logger.info(`All contents in ${directoryPath} have been cleaned.`);
-        } catch (error) {
-            if (error.code === 'ENOENT') {
-                logger.info(`Directory at ${directoryPath} does not exist.`);
-            } else {
-                logger.error(`Failed to clean directory contents: ${error.message}`);
-            }
-        }
-    }
-
-    private async extractArchive(zipPath: string, extractPath: string): Promise<void> {
-        if (zipPath.endsWith('.zip')) {
-            await unzipper.Open.file(zipPath)
-                .then(d => d.extract({path: extractPath}));
-        } else if (zipPath.endsWith('.tar.gz')) {
-            await tar.extract({file: zipPath, cwd: extractPath});
+            console.log(`Extracted tar.gz to ${outputDir}`);
         } else {
-            logger.error('Unsupported file type. Only .zip and .tar.gz are supported.');
+            throw new Error('Unsupported archive format');
         }
     }
 
-    private async saveVersionFile(resourcePath: string, version: string): Promise<void> {
-        const versionFilePath = path.join(resourcePath, this.installedCLIVersionFileName);
+    // Method to execute the installation
+    async install(outputPath: string): Promise<void> {
+        const exists = await this.checkExecutableExists();
+        if (exists) {
+            console.log('Executable already exists. Skipping installation.');
+            return;
+        }
+
+        const url = await this.getDownloadURL();
+        if (!url) {
+            console.error('No valid download URL available for this platform.');
+            return;
+        }
+
+        const archivePath = path.join(outputPath, await this.getCLIExecutableName());
+
         try {
-            await fsPromises.writeFile(versionFilePath, `${version}`, 'utf8');
-            logger.info(`Version file created at ${versionFilePath} with version ${version}`);
+            await this.downloadFile(url, archivePath);
+
+            // Now extract the downloaded archive
+            await this.extractFile(archivePath, outputPath);
         } catch (error) {
-            logger.error(`Failed to create version file: ${error.message}`);
+            console.error(`Error during installation: ${error.message}`);
         }
     }
 
-    private async readInstalledVersionFile(resourcePath: string): Promise<string | null> {
-        const versionFilePath = path.join(resourcePath, this.installedCLIVersionFileName);
+    // Check if the executable exists
+    async checkExecutableExists(): Promise<boolean> {
+        let executablePath;
+        let dirExecutablePath = path.join(__dirname, `/resources/${this.removeExtension(await this.getCLIExecutableName())}`);
+        if (this.platform === 'win32') {
+            executablePath = path.join(dirExecutablePath, 'cx.exe');
+        } else {
+            executablePath = path.join(dirExecutablePath, '/cx');
+        }
         try {
-            const content = await fsPromises.readFile(versionFilePath, 'utf8');
-            logger.info(`Version file content: ${content}`);
-            return content;
+            await fs.access(executablePath);
+            console.log(`Executable exists at: ${executablePath}`);
+            return true;
         } catch (error) {
-            if (error.code === 'ENOENT') {
-                logger.warn(`Version file not found at ${versionFilePath}.`);
-            } else {
-                logger.error(`Failed to read version file: ${error.message}`);
-            }
-            return null;
+            console.error(`Executable does not exist at: ${executablePath}`);
+            return false;
         }
     }
 
-    public checkExecutableExists(): boolean {
-        return fs.existsSync(this.getExecutablePath());
-    }
-
+    // Method to read the AST CLI version from the file
     async readASTCLIVersion(): Promise<string> {
         if (this.cliVersion) {
             return this.cliVersion;
         }
         try {
-            const versionFilePath = this.getVersionFilePath();
-            const versionContent = await fsPromises.readFile(versionFilePath, 'utf-8');
+            const versionFilePath = path.join(process.cwd(), 'checkmarx-ast-cli.version');
+            const versionContent = await fs.readFile(versionFilePath, 'utf-8');
             return versionContent.trim();
         } catch (error) {
-            logger.warn('Error reading AST CLI version: ' + error.message);
-            return this.cliDefaultVersion;
+            console.error('Error reading AST CLI version:', error);
+            throw error;
         }
-    }
-
-    private getVersionFilePath(): string {
-        return path.join(__dirname, '../../../checkmarx-ast-cli.version');
-    }
-
-    private getCompressFolderName(): string {
-        return `ast-cli.${this.platform === winOS ? 'zip' : 'tar.gz'}`;
-    }
-    
-    public getPlatform(): SupportedPlatforms {
-        return this.platform;
     }
 }

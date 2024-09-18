@@ -9,7 +9,10 @@
     "README.md"
   ],
   "dependencies": {
-    "log4js": "^6.9.1"
+    "adm-zip": "^0.5.16",
+    "log4js": "^6.9.1",
+    "node-fetch": "^3.3.2",
+    "tar": "^7.4.3"
   },
   "scripts": {
     "build": "tsc",
@@ -26,6 +29,7 @@
   },
   "homepage": "https://github.com/CheckmarxDev/ast-cli-javascript-wrapper#readme",
   "devDependencies": {
+    "@types/adm-zip": "^0.5.5",
     "@types/jest": "^27.5.0",
     "@types/node": "^22.9.0",
     "@typescript-eslint/eslint-plugin": "^5.29.0",
