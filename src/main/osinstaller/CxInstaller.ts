@@ -1,13 +1,9 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { pipeline } from 'stream';
-import { promisify } from 'util';
-import { createWriteStream } from 'node:fs';
-import fetch from 'node-fetch';
+import * as fs1 from 'fs';
 import AdmZip from 'adm-zip'; // For extracting ZIP files
-import * as tar from 'tar';   // For extracting tar.gz files
-
-const streamPipeline = promisify(pipeline);
+import * as tar from 'tar';
+import * as https from "https";   // For downloading files
 
 export class CxInstaller {
     private readonly platform: string;
@@ -43,6 +39,17 @@ export class CxInstaller {
         return `https://download.checkmarx.com/CxOne/CLI/${cliVersion}/ast-cli_${cliVersion}_${platformString}_x64.${archiveExtension}`;
     }
     
+    getExecutablePath(): string {
+        let executablePath;
+        const dirExecutablePath = path.join(__dirname, `../wrapper/resources/ast-cli_2.2.5_darwin_x64/`);
+        if (this.platform === 'win32') {
+            executablePath = path.join(dirExecutablePath, 'cx.exe');
+        } else {
+            executablePath = path.join(dirExecutablePath, 'cx');
+        }
+        return executablePath;
+    }
+
     async getCLIExecutableName(): Promise<string> {
         let platformString: string;
         let archiveExtension: string;
@@ -74,18 +81,8 @@ export class CxInstaller {
         }
         return fileName.replace(/\.[^/.]+$/, ''); // Remove other extensions like '.zip'
     }
+
     
-    // Method to download the file
-    async downloadFile(url: string, outputPath: string): Promise<void> {
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`Failed to download file: ${response.statusText}`);
-        }
-
-        await streamPipeline(response.body, createWriteStream(outputPath));
-        console.log(`Downloaded to ${outputPath}`);
-    }
 
     // Method to extract the file (ZIP or tar.gz)
     async extractFile(filePath: string, outputDir: string): Promise<void> {
@@ -123,7 +120,9 @@ export class CxInstaller {
         const archivePath = path.join(outputPath, await this.getCLIExecutableName());
 
         try {
-            await this.downloadFile(url, archivePath);
+            console.log(`Downloading from: ${url}`);
+            await downloadFile(url, archivePath);
+            console.log(`Downloaded to: ${archivePath}`);
 
             // Now extract the downloaded archive
             await this.extractFile(archivePath, outputPath);
@@ -135,7 +134,7 @@ export class CxInstaller {
     // Check if the executable exists
     async checkExecutableExists(): Promise<boolean> {
         let executablePath;
-        let dirExecutablePath = path.join(__dirname, `/resources/${this.removeExtension(await this.getCLIExecutableName())}`);
+        const dirExecutablePath = path.join(__dirname, `../wrapper/resources/${this.removeExtension(await this.getCLIExecutableName())}`);
         if (this.platform === 'win32') {
             executablePath = path.join(dirExecutablePath, 'cx.exe');
         } else {
@@ -165,4 +164,24 @@ export class CxInstaller {
             throw error;
         }
     }
+}
+
+// Method to download the file
+function downloadFile(url: string, dest: string): void {
+    const file = fs1.createWriteStream(dest);
+
+    https.get(url, (response) => {
+        if (response.statusCode === 200) {
+            response.pipe(file);
+
+            file.on('finish', () => {
+                file.close();
+                console.log('Download completed!');
+            });
+        } else {
+            console.error(`Failed to download file. Status code: ${response.statusCode}`);
+        }
+    }).on('error', (err) => {
+        console.error(`Error downloading file: ${err.message}`);
+    });
 }

@@ -7,7 +7,6 @@ import {getLoggerWithFilePath, logger} from "./loggerConfig";
 import * as fs from "fs"
 import * as os from "os";
 import CxBFL from "../bfl/CxBFL";
-import path = require('path');
 import {CxInstaller} from "../osinstaller/CxInstaller";
 
 type ParamTypeMap = Map<CxParamType, string>;
@@ -18,9 +17,10 @@ export class CxWrapper {
     linux = 'linux';
     
 
-    async constructor(cxScanConfig: CxConfig, logFilePath?: string) {
+    constructor(cxScanConfig: CxConfig, logFilePath?: string) {
         getLoggerWithFilePath(logFilePath)
-        await this.downloadIfNotInstalledCLI(process.platform);
+        this.downloadIfNotInstalledCLI(process.platform);
+        const cxInstaller = new CxInstaller(process.platform);
         if (cxScanConfig.apiKey) {
             this.config.apiKey = cxScanConfig.apiKey;
         } else if (cxScanConfig.clientId && cxScanConfig.clientSecret) {
@@ -31,17 +31,15 @@ export class CxWrapper {
             logger.info("Did not receive ClientId/Secret or ApiKey from cli arguments");
         }
         let executablePath: string;
+        executablePath = cxInstaller.getExecutablePath();
         if (cxScanConfig.pathToExecutable) {
             this.config.pathToExecutable = cxScanConfig.pathToExecutable;
         } else if (process.platform === 'win32') {
-            executablePath = path.join(__dirname, '/resources/cx.exe');
             this.config.pathToExecutable = executablePath;
         } else if (process.platform === 'darwin') {
-            executablePath = path.join(__dirname, '/resources/cx');
             this.config.pathToExecutable = executablePath;
             fs.chmodSync(this.config.pathToExecutable, 0o777);
         } else {
-            executablePath = path.join(__dirname, '/resources/cx');
             this.config.pathToExecutable = executablePath;
             fs.chmodSync(this.config.pathToExecutable, 0o777);
         }
@@ -61,7 +59,7 @@ export class CxWrapper {
     
     async downloadIfNotInstalledCLI(os: string){
         
-        let cxInstaller = new CxInstaller(os);
+        const cxInstaller = new CxInstaller(os);
         await cxInstaller.install('/resources');
     }
 
