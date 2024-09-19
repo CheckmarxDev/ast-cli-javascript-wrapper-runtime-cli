@@ -1,9 +1,10 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as fs1 from 'fs';
 import AdmZip from 'adm-zip'; // For extracting ZIP files
 import * as tar from 'tar';
-import * as https from "https";   // For downloading files
+import axios from 'axios';
+import {createWriteStream} from "node:fs";
+
 
 export class CxInstaller {
     private readonly platform: string;
@@ -41,11 +42,22 @@ export class CxInstaller {
     
     getExecutablePath(): string {
         let executablePath;
-        const dirExecutablePath = path.join(__dirname, `../wrapper/resources/ast-cli_2.2.5_darwin_x64/`);
+        const dirExecutablePath = path.join(__dirname, `../wrapper/resources`);
         if (this.platform === 'win32') {
             executablePath = path.join(dirExecutablePath, 'cx.exe');
         } else {
             executablePath = path.join(dirExecutablePath, 'cx');
+        }
+        return executablePath;
+    }
+
+    getZipPath(): string {
+        let executablePath;
+        const dirExecutablePath = path.join(__dirname, `../wrapper/resources/`);
+        if (this.platform === 'win32') {
+            executablePath = path.join(dirExecutablePath, 'cx.zip');
+        } else {
+            executablePath = path.join(dirExecutablePath, 'cx.tar.gz');
         }
         return executablePath;
     }
@@ -116,16 +128,13 @@ export class CxInstaller {
             console.error('No valid download URL available for this platform.');
             return;
         }
-
-        const archivePath = path.join(outputPath, await this.getCLIExecutableName());
-
+        
         try {
             console.log(`Downloading from: ${url}`);
-            await downloadFile(url, archivePath);
-            console.log(`Downloaded to: ${archivePath}`);
+            await downloadFile(url, outputPath);
+            console.log(`Downloaded to: ${outputPath}`);
 
             // Now extract the downloaded archive
-            await this.extractFile(archivePath, outputPath);
         } catch (error) {
             console.error(`Error during installation: ${error.message}`);
         }
@@ -134,11 +143,11 @@ export class CxInstaller {
     // Check if the executable exists
     async checkExecutableExists(): Promise<boolean> {
         let executablePath;
-        const dirExecutablePath = path.join(__dirname, `../wrapper/resources/${this.removeExtension(await this.getCLIExecutableName())}`);
+        const dirExecutablePath = path.join(__dirname, `../../wrapper/resources/`);
         if (this.platform === 'win32') {
             executablePath = path.join(dirExecutablePath, 'cx.exe');
         } else {
-            executablePath = path.join(dirExecutablePath, '/cx');
+            executablePath = path.join(dirExecutablePath, 'cx');
         }
         try {
             await fs.access(executablePath);
@@ -166,22 +175,49 @@ export class CxInstaller {
     }
 }
 
-// Method to download the file
-function downloadFile(url: string, dest: string): void {
-    const file = fs1.createWriteStream(dest);
+async function downloadFile(downloadURLPath: string, filePath: string): Promise<void> {
+    const fileName = "cx";
+    console.log(`Downloading ${fileName} from: ${downloadURLPath}`);
 
-    https.get(url, (response) => {
-        if (response.statusCode === 200) {
-            response.pipe(file);
+    try {
+        // Ensure the directory exists
+        await fs.mkdir(path.dirname(downloadURLPath), { recursive: true });
 
-            file.on('finish', () => {
-                file.close();
-                console.log('Download completed!');
-            });
-        } else {
-            console.error(`Failed to download file. Status code: ${response.statusCode}`);
+        // Check if filePath is a directory
+        try {
+            const stats = await fs.stat(filePath);
+            if (stats.isDirectory()) {
+                // If it's a directory, append the filename from the URL
+                filePath = path.join(filePath, path.basename(downloadURLPath));
+            }
+        } catch (error) {
+            // If the path doesn't exist, assume it's meant to be a file
+            // The directory has already been created above
         }
-    }).on('error', (err) => {
-        console.error(`Error downloading file: ${err.message}`);
-    });
+
+        // Perform HTTP GET request
+        const response = await axios({
+            method: 'GET',
+            url: downloadURLPath,
+            responseType: 'stream'
+        });
+        // Create the file stream at the specified filePath
+        const fileStream = createWriteStream(process.cwd()+"/src/main/wrapper/resources/cx");
+
+        // Pipe the response data to the file
+        response.data.pipe(fileStream);
+
+        // Wait for the file to finish writing
+        await new Promise<void>((resolve, reject) => {
+            fileStream.on('finish', resolve);
+            fileStream.on('error', reject);
+        });
+
+        console.log(`File downloaded successfully to ${filePath}`);
+
+    } catch (error) {
+        console.log(`Error during file download:` + error.message);
+        throw new Error(`Invoking HTTP request to download file failed - ${error.message}`);
+    }
 }
+
