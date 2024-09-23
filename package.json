@@ -1,55 +1,42 @@
 {
-  "name": "@CheckmarxDev/ast-cli-javascript-wrapper-runtime-cli",
-  "version": "1.0.6",
-  "description": "AST CLI Javascript wrapper runtime CLI",
+  "name": "@CheckmarxDev/ast-cli-javascript-wrapper",
+  "version": "0.0.114",
+  "description": "AST CLI Javascript wrapper",
   "main": "dist/main/wrapper/CxWrapper.js",
   "typings": "dist/main/wrapper/CxWrapper.d.ts",
   "files": [
     "dist/main/**/*",
-    "README.md",
-    "checkmarx-ast-cli.version"
+    "README.md"
   ],
   "dependencies": {
-    "async-mutex": "^0.5.0",
-    "axios": "^1.7.7",
-    "log4js": "^6.9.1",
-    "node-fetch": "^3.3.2",
-    "tar": "^7.4.3",
-    "unzipper": "^0.12.3"
+    "log4js": "^6.9.1"
   },
   "scripts": {
     "build": "tsc",
-    "postbuild": "copyfiles -u 1 src/tests/data/* dist/;",
+    "postbuild": "copyfiles -u 1 src/main/wrapper/resources/cx* dist/;copyfiles -u 1 src/tests/data/* dist/;",
     "lint": "eslint . --ext .ts",
     "lint-and-fix": "eslint . --ext .ts --fix",
-    "test": "copyfiles -u 1 src/tests/data/* dist/; tsc && jest --runInBand"
+    "test": "copyfiles -u 1 src/tests/data/* dist/; tsc && jest"
   },
-  "repository": "https://github.com/CheckmarxDev/ast-cli-javascript-wrapper-runtime-cli.git",
+  "repository": "https://github.com/CheckmarxDev/ast-cli-javascript-wrapper.git",
   "author": "Jay Nanduri",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/CheckmarxDev/ast-cli-javascript-wrapper-runtime-cli/issues"
+    "url": "https://github.com/CheckmarxDev/ast-cli-javascript-wrapper/issues"
   },
-  "homepage": "https://github.com/CheckmarxDev/ast-cli-javascript-wrapper-runtime-cli#readme",
+  "homepage": "https://github.com/CheckmarxDev/ast-cli-javascript-wrapper#readme",
   "devDependencies": {
-    "@babel/core": "^7.25.2",
-    "@babel/plugin-transform-runtime": "^7.25.4",
-    "@babel/preset-env": "^7.25.4",
-    "@babel/preset-typescript": "^7.24.7",
-    "@types/adm-zip": "^0.5.5",
     "@types/jest": "^27.5.0",
-    "@types/node": "^22.9.0",
-    "@types/unzipper": "^0.10.10",
+    "@types/node": "^20.14.11",
     "@typescript-eslint/eslint-plugin": "^5.29.0",
     "@typescript-eslint/parser": "^5.29.0",
-    "babel-jest": "^29.7.0",
     "copyfiles": "^2.4.1",
     "eslint": "8.1.0",
     "jest": "^29.7.0",
     "jest-cli": "29.7.0",
-    "ts-jest": "^29.2.5",
+    "ts-jest": "^29.2.2",
     "ts-mockito": "^2.6.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.5.3"
   },
   "overrides": {
     "bluebird": "3.7.2"
