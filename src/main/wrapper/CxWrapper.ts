@@ -147,11 +147,11 @@ export class CxWrapper {
         return await exec.executeCommands(this.config.pathToExecutable, commands, CxConstants.SCAN_TYPE);
     }
 
-    async scanVorpal(sourceFile: string, updateVersion = false, agent?: string | null): Promise<CxCommandOutput> {
-        const commands: string[] = [CxConstants.CMD_SCAN, CxConstants.CMD_VORPAL, CxConstants.SOURCE_FILE, sourceFile];
+    async scanAsca(sourceFile: string, updateVersion = false, agent?: string | null): Promise<CxCommandOutput> {
+        const commands: string[] = [CxConstants.CMD_SCAN, CxConstants.CMD_ASCA, CxConstants.SOURCE_FILE, sourceFile];
 
         if (updateVersion) {
-            commands.push(CxConstants.VORPAL_UPDATE_VERSION);
+            commands.push(CxConstants.ASCA_UPDATE_VERSION);
         }
         if (agent) {
             commands.push(CxConstants.AGENT);
@@ -165,7 +165,7 @@ export class CxWrapper {
 
         commands.push(...this.initializeCommands(false));
         const exec = new ExecutionService();
-        return await exec.executeCommands(this.config.pathToExecutable, commands, CxConstants.SCAN_VORPAL);
+        return await exec.executeCommands(this.config.pathToExecutable, commands, CxConstants.SCAN_ASCA);
     }
 
     async scanCancel(id: string): Promise<CxCommandOutput> {

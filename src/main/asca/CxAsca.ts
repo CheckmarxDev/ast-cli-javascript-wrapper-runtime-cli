@@ -1,10 +1,10 @@
-import VorpalScanDetail from "./VorpalScanDetail";
+import AscaScanDetail from "./AscaScanDetail";
 
-export default class CxVorpal {
+export default class CxAsca {
     requestId: string;
     status: boolean;
     message: string;
-    scanDetails: VorpalScanDetail[];
+    scanDetails: AscaScanDetail[];
     error: any;
 
     constructor() {
@@ -15,8 +15,8 @@ export default class CxVorpal {
         this.error = null;
     }
 
-    static parseScan(resultObject: any): CxVorpal {
-        const scan = new CxVorpal();
+    static parseScan(resultObject: any): CxAsca {
+        const scan = new CxAsca();
         scan.requestId = resultObject.request_id;
         scan.status = resultObject.status;
         scan.message = resultObject.message;
@@ -24,7 +24,7 @@ export default class CxVorpal {
 
         if (resultObject.scan_details instanceof Array) {
             scan.scanDetails = resultObject.scan_details.map((detail: any) => {
-                const scanDetail = new VorpalScanDetail();
+                const scanDetail = new AscaScanDetail();
                 scanDetail.ruleId = detail.rule_id;
                 scanDetail.language = detail.language;
                 scanDetail.ruleName = detail.rule_name;

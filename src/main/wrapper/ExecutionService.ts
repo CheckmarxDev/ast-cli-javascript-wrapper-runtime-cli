@@ -22,7 +22,7 @@ import CxKicsRemediation from "../remediation/CxKicsRemediation";
 import CxScaRealTime from "../scaRealtime/CxScaRealTime";
 import CxChat from "../chat/CxChat";
 import CxMask from "../mask/CxMask";
-import CxVorpal from "../vorpal/CxVorpal";
+import CxAsca from "../asca/CxAsca";
 
 let skipValue = false;
 const fileSourceFlag = "--file-source"
@@ -200,9 +200,9 @@ export class ExecutionService {
                   const scans = CxScan.parseProject(resultObject);
                   cxCommandOutput.payload = scans;
                   break;
-                case CxConstants.SCAN_VORPAL:
-                    const vorpal = CxVorpal.parseScan(resultObject);
-                    cxCommandOutput.payload = [vorpal];
+                case CxConstants.SCAN_ASCA:
+                    const asca = CxAsca.parseScan(resultObject);
+                    cxCommandOutput.payload = [asca];
                     break;
                 case CxConstants.PROJECT_TYPE:
                   const projects = CxProject.parseProject(resultObject);

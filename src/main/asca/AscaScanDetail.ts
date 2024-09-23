@@ -1,4 +1,4 @@
-export default class VorpalScanDetail {
+export default class AscaScanDetail {
     ruleId: number;
     language: string;
     ruleName: string;
