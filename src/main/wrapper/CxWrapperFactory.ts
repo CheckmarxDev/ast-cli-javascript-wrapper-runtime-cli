@@ -1,14 +1,16 @@
-// ICxWrapperFactory.ts
-import { CxWrapper } from "./CxWrapper";
-import { CxConfig } from "./CxConfig";
+import {CxWrapper} from "./CxWrapper";
+import {CxConfig} from "./CxConfig";
 
-export interface ICxWrapperFactory {
-    createWrapper(cxScanConfig: CxConfig, logFilePath?: string): Promise<CxWrapper>;
-}
+class CxWrapperFactory {
+    static async createWrapper(cxScanConfig: CxConfig, type?: string, logFilePath?: string) {
+        let wrapper: CxWrapper;
 
-class CxWrapperFactory implements ICxWrapperFactory {
-    async createWrapper(cxScanConfig: CxConfig, logFilePath?: string): Promise<CxWrapper> {
-        const wrapper = await CxWrapper.getInstance(cxScanConfig, logFilePath);
+        if (type === 'mock') {
+            wrapper = new CxWrapper(cxScanConfig, logFilePath);
+        }
+        else {
+            wrapper = await CxWrapper.getInstance(cxScanConfig, logFilePath);
+        }
         await wrapper.init();
         return wrapper;
     }

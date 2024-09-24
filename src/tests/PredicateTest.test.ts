@@ -4,13 +4,11 @@ import CxResult from '../main/results/CxResult';
 import {CxConstants} from '../main/wrapper/CxConstants';
 import CxWrapperFactory from "../main/wrapper/CxWrapperFactory";
 
-const cxWrapperFactory = new CxWrapperFactory();
-
 describe("Triage cases", () => {
     const cxScanConfig = new BaseTest();
 
     it('Triage Successful case', async () => {
-        const auth = await cxWrapperFactory.createWrapper(cxScanConfig);
+        const auth = await CxWrapperFactory.createWrapper(cxScanConfig);
 
         const scanList: CxCommandOutput = await auth.scanList("statuses=Completed,limit=100");
         let result: CxResult;
