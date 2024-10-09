@@ -13,7 +13,7 @@ export class CxInstaller {
     private readonly platform: string;
     private cliVersion: string;
     private readonly resourceDirPath: string;
-    private readonly cliDefaultVersion = '2.2.5'; // This will be used if the version file is not found. Should be updated with the latest version.
+    private readonly cliDefaultVersion = '2.3.0'; // This will be used if the version file is not found. Should be updated with the latest version.
 
     constructor(platform: string) {
         this.platform = platform;
