@@ -67,7 +67,7 @@ jobs:
       # SETUP NODE
       - uses: actions/setup-node@v4.0.2
         with:
-          node-version: 20
+          node-version: 22.11.0
           registry-url: https://npm.pkg.github.com/
 
       # GET TAG NAME
