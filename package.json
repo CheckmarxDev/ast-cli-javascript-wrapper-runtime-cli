@@ -27,7 +27,7 @@
   "homepage": "https://github.com/CheckmarxDev/ast-cli-javascript-wrapper#readme",
   "devDependencies": {
     "@types/jest": "^27.5.0",
-    "@types/node": "^20.14.11",
+    "@types/node": "^22.9.0",
     "@typescript-eslint/eslint-plugin": "^5.29.0",
     "@typescript-eslint/parser": "^5.29.0",
     "copyfiles": "^2.4.1",
@@ -36,7 +36,7 @@
     "jest-cli": "29.7.0",
     "ts-jest": "^29.2.2",
     "ts-mockito": "^2.6.1",
-    "typescript": "^5.5.3"
+    "typescript": "^5.6.3"
   },
   "overrides": {
     "bluebird": "3.7.2"
