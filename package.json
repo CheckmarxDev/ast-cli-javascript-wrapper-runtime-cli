@@ -1,6 +1,6 @@
 {
   "name": "@CheckmarxDev/ast-cli-javascript-wrapper",
-  "version": "0.0.117",
+  "version": "0.0.118",
   "description": "AST CLI Javascript wrapper",
   "main": "dist/main/wrapper/CxWrapper.js",
   "typings": "dist/main/wrapper/CxWrapper.d.ts",
