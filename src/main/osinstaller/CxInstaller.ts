@@ -22,7 +22,7 @@ export class CxInstaller {
     private cliVersion: string;
     private readonly resourceDirPath: string;
     private readonly installedCLIVersionFileName = 'cli-version';
-    private readonly cliDefaultVersion = '2.3.14'; // Update this with the latest version.
+    private readonly cliDefaultVersion = '2.3.15'; // Update this with the latest version.
     private readonly client: AstClient;
 
     private static readonly PLATFORMS: Record<SupportedPlatforms, PlatformData> = {
