@@ -1,16 +1,25 @@
 name: Post-Check Actions
+on: pull_request
 
-on:
-  check_suite:
-    types: [completed]
+permissions:
+  contents: write
 
 jobs:
-  post_check_actions:
+  dependabot-merge:
     runs-on: ubuntu-latest
-    if: ${{ contains(github.event.pull_request.base.ref, 'feature/update_cli') && github.event.check_suite.conclusion == 'success' }}
+    if: ${{ contains(github.event.pull_request.base.ref, 'feature/update_cli') }}
     steps:
-      - uses: hmarr/auto-approve-action@v4
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@dbb049abf0d677abbd7f7eee0375145b417fdd34 #v2.2.0
         with:
-          review-message: "Auto approved automated PR"
+          github-token: "${{ secrets.PERSONAL_ACCESS_TOKEN  }}"
+      - name: Enable auto-merge for Dependabot PRs
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.PERSONAL_ACCESS_TOKEN }}
+        run: gh pr merge --auto --merge "$PR_URL"
+      - name: Auto approve dependabot PRs
+        uses: hmarr/auto-approve-action@f0939ea97e9205ef24d872e76833fa908a770363 #v4
+        with:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          pull-request-number: ${{ github.event.pull_request.number }}
