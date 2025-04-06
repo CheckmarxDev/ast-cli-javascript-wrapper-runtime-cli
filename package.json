@@ -1,6 +1,6 @@
 {
   "name": "@CheckmarxDev/ast-cli-javascript-wrapper-runtime-cli",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "AST CLI Javascript wrapper runtime CLI",
   "main": "dist/main/wrapper/CxWrapper.js",
   "typings": "dist/main/wrapper/CxWrapper.d.ts",
@@ -24,7 +24,7 @@
     "lint": "eslint . --ext .ts",
     "lint-and-fix": "eslint . --ext .ts --fix",
     "test": "copyfiles -u 1 src/tests/data/* dist/; tsc && jest --runInBand",
-  "test:unit": "tsc && jest --runInBand --testPathPattern=tests/unit --no-coverage"
+    "test:unit": "tsc && jest --runInBand --testPathPattern=tests/unit --no-coverage"
   },
   "repository": "https://github.com/CheckmarxDev/ast-cli-javascript-wrapper-runtime-cli.git",
   "author": "Jay Nanduri",
