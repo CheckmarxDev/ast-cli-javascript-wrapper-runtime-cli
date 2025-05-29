@@ -416,6 +416,8 @@ export class CxWrapper {
 
         const paramList = additionalParameters.match(/(?:[^\s"]+|"[^"]*")+/g);
         logger.info("Additional parameters refined: " + paramList)
+        logger.info("!!!!!!!!!!!!!!!!!!!!xxxxxxxxxxxx")
+
         if (paramList) {
             paramList.forEach((element) => {
                 params.push(element);
