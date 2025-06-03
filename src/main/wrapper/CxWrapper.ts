@@ -410,17 +410,37 @@ export class CxWrapper {
     prepareAdditionalParams(additionalParameters: string): string[] {
         const params: string[] = [];
 
+        logger.info("=== prepareAdditionalParams Debug ===");
+        logger.info("1. Input received: " + additionalParameters);
+        logger.info("2. Initial params array: " + JSON.stringify(params));
+
         if (!additionalParameters) {
+            logger.info("3. No additional parameters provided - returning empty array");
             return params;
         }
 
+        logger.info("4. Starting regex match process...");
         const paramList = additionalParameters.match(/(?:[^\s"]+|"[^"]*")+/g);
-        logger.info("Additional parameters refined: " + paramList)
+        logger.info("5. Regex result (paramList): " + JSON.stringify(paramList));
+
+        logger.info("Additional parameters refined: " + paramList);
+        logger.info("6. Logger message sent with paramList");
+
         if (paramList) {
-            paramList.forEach((element) => {
+            logger.info("7. paramList exists, starting forEach loop...");
+            paramList.forEach((element, index) => {
+                logger.info("8." + (index + 1) + ". Processing element: " + element);
                 params.push(element);
+                logger.info("8." + (index + 1) + ". params array after push: " + JSON.stringify(params));
             });
+            logger.info("9. forEach completed");
+        } else {
+            logger.info("7. paramList is null/undefined - skipping forEach");
         }
+
+        logger.info("10. Final params array: " + JSON.stringify(params));
+        logger.info("=== End Debug ===");
+
         return params;
     }
 
