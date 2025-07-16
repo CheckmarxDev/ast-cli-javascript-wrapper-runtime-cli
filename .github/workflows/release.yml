@@ -94,6 +94,8 @@ jobs:
         id: check_latest_cli_version
         run: |
           LATEST_CLI_VERSION=$(curl -s https://github.com/Checkmarx/ast-cli/releases/latest | grep -oP 'tag/\K[0-9]+\.[0-9]+\.[0-9]+')
+          echo "CLI_VERSION=[$CLI_VERSION]"
+          echo "LATEST_CLI_VERSION=[$LATEST_CLI_VERSION]"
           echo "Latest CLI version from GitHub: $LATEST_CLI_VERSION"
           if [ "$CLI_VERSION" = "$LATEST_CLI_VERSION" ]; then
             echo "CLI_VERSION ($CLI_VERSION) matches the latest released version ($LATEST_CLI_VERSION). Proceeding."
