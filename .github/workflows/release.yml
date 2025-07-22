@@ -93,16 +93,72 @@ jobs:
       - name: Check if CLI version is latest
         id: check_latest_cli_version
         run: |
-          LATEST_CLI_VERSION=$(curl -s https://github.com/Checkmarx/ast-cli/releases/latest | grep -oP 'tag/\K[0-9]+\.[0-9]+\.[0-9]+' -v)
-          echo "CLI_VERSION=[$CLI_VERSION]"
-          echo "LATEST_CLI_VERSION=[$LATEST_CLI_VERSION]"
-          echo "Latest CLI version from GitHub: $LATEST_CLI_VERSION"
+          set -x  # Enable debug mode to show all commands being executed
+          
+          echo "=== Starting CLI version check ==="
+          echo "Current CLI_VERSION from environment: $CLI_VERSION"
+          echo "CLI_VERSION from step output: ${{ steps.extract_cli_version.outputs.CLI_VERSION }}"
+          
+          echo "=== Fetching latest release from GitHub ==="
+          echo "Calling: curl -s https://github.com/Checkmarx/ast-cli/releases/latest"
+          
+          # Get the raw response for debugging
+          RAW_RESPONSE=$(curl -s https://github.com/Checkmarx/ast-cli/releases/latest)
+          echo "=== Raw curl response length: ${#RAW_RESPONSE} characters ==="
+          
+          # Show first 500 characters of response for debugging
+          echo "=== First 500 characters of response ==="
+          echo "$RAW_RESPONSE" | head -c 500
+          echo ""
+          echo "=== End of response preview ==="
+          
+          # Extract version using grep
+          echo "=== Extracting version using grep ==="
+          LATEST_CLI_VERSION=$(echo "$RAW_RESPONSE" | grep -oP 'tag/\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          
+          echo "=== Results ==="
+          echo "CLI_VERSION: [$CLI_VERSION]"
+          echo "LATEST_CLI_VERSION: [$LATEST_CLI_VERSION]"
+          echo "CLI_VERSION length: ${#CLI_VERSION}"
+          echo "LATEST_CLI_VERSION length: ${#LATEST_CLI_VERSION}"
+          
+          # Check if we got a valid version
+          if [ -z "$LATEST_CLI_VERSION" ]; then
+            echo "ERROR: Failed to extract latest CLI version from GitHub response"
+            echo "Trying alternative extraction methods..."
+            
+            # Try alternative grep patterns
+            ALT_VERSION1=$(echo "$RAW_RESPONSE" | grep -o 'releases/tag/[0-9][0-9.]*' | head -1 | sed 's/releases\/tag\///')
+            ALT_VERSION2=$(echo "$RAW_RESPONSE" | grep -o 'tag/[0-9][0-9.]*' | head -1 | sed 's/tag\///')
+            
+            echo "Alternative extraction 1: [$ALT_VERSION1]"
+            echo "Alternative extraction 2: [$ALT_VERSION2]"
+            
+            # Use the first non-empty alternative
+            if [ -n "$ALT_VERSION1" ]; then
+              LATEST_CLI_VERSION="$ALT_VERSION1"
+              echo "Using alternative extraction 1: $LATEST_CLI_VERSION"
+            elif [ -n "$ALT_VERSION2" ]; then
+              LATEST_CLI_VERSION="$ALT_VERSION2"
+              echo "Using alternative extraction 2: $LATEST_CLI_VERSION"
+            else
+              echo "FATAL: All extraction methods failed"
+              exit 1
+            fi
+          fi
+          
+          echo "=== Final comparison ==="
+          echo "Comparing CLI_VERSION='$CLI_VERSION' with LATEST_CLI_VERSION='$LATEST_CLI_VERSION'"
+          
           if [ "$CLI_VERSION" = "$LATEST_CLI_VERSION" ]; then
-            echo "CLI_VERSION ($CLI_VERSION) matches the latest released version ($LATEST_CLI_VERSION). Proceeding."
+            echo "✅ SUCCESS: CLI_VERSION ($CLI_VERSION) matches the latest released version ($LATEST_CLI_VERSION). Proceeding."
           else
-            echo "CLI_VERSION ($CLI_VERSION) does not match the latest released version ($LATEST_CLI_VERSION). Failing workflow."
+            echo "❌ FAILURE: CLI_VERSION ($CLI_VERSION) does not match the latest released version ($LATEST_CLI_VERSION)."
+            echo "This workflow will now fail."
             exit 1
           fi
+          
+          echo "=== CLI version check completed ==="
 
       - name: NPM ci and build
         run: |
