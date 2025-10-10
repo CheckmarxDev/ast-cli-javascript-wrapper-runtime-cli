@@ -1,4 +1,5 @@
 {
+  
   "name": "@CheckmarxDev/ast-cli-javascript-wrapper-runtime-cli",
   "version": "1.0.24",
   "description": "AST CLI Javascript wrapper runtime CLI",
