@@ -40,7 +40,7 @@ Add the following dependency:
 
 ```     
 "dependencies": {
-    "@checkmarxdev/ast-cli-javascript-wrapper-runtime-cli": "{version}"
+    "@checkmarx/ast-cli-javascript-wrapper-runtime-cli": "{version}"
 }
 ```
 
@@ -86,7 +86,7 @@ setx PATH_TO_EXECUTABLE {value}
 
 Checkmarx - AST Integrations Team
 
-CxProject Link: [https://github.com/CheckmarxDev/ast-cli-javascript-wrapper-runtime-cli](https://github.com/CheckmarxDev/ast-cli-javascript-wrapper-runtime-cli)
+CxProject Link: [https://github.com/checkmarx/ast-cli-javascript-wrapper-runtime-cli](https://github.com/checkmarx/ast-cli-javascript-wrapper-runtime-cli)
 
 
 © 2021 Checkmarx Ltd. All Rights Reserved.
