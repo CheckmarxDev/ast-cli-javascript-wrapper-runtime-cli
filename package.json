@@ -7,7 +7,7 @@
   "files": [
     "dist/main/**/*",
     "README.md",
-    "Checkmarx-ast-cli.version"
+    "checkmarx-ast-cli.version"
   ],
   "dependencies": {
     "async-mutex": "^0.5.0",

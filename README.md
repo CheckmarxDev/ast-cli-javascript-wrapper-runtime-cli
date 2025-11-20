@@ -40,7 +40,7 @@ Add the following dependency:
 
 ```     
 "dependencies": {
-    "@checkmarx/ast-cli-javascript-wrapper-runtime-cli": "{version}"
+    "@Checkmarx/ast-cli-javascript-wrapper-runtime-cli": "{version}"
 }
 ```
 
