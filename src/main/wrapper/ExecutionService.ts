@@ -54,7 +54,7 @@ function transform(n:string) {
         return r;
     }
     // If the current string is "--file-source", set the flag
-    if (n === fileSourceFlag || n === "-s" || n === scaResolverParamsFlag) {
+    if (n === fileSourceFlag || n === scaResolverParamsFlag) {
         skipValue = true;
     }
 
