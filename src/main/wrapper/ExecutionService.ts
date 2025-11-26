@@ -25,7 +25,6 @@ import CxMask from "../mask/CxMask";
 import CxAsca from "../asca/CxAsca";
 
 let skipValue = false;
-const fileSourceFlag = "--file-source"
 const scaResolverParamsFlag = "--sca-resolver-params"
 
 function isJsonString(s: string) {
