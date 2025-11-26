@@ -52,7 +52,6 @@ function transform(n:string) {
         if(n) r = n.replace(/["]/g, "").replace("/[, ]/g",",");
         return r;
     }
-    // If the current string is "--file-source", set the flag
     if (n === scaResolverParamsFlag) {
         skipValue = true;
     }
